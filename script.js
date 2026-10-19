@@ -1,207 +1,392 @@
 
-const fileInput = document.getElementById("video-file");
-const dropzone = document.querySelector(".upload-dropzone");
-const uploadTitle = document.getElementById("upload-title");
-const uploadDescription = document.getElementById("upload-description");
-const roomNameInput = document.getElementById("room-name");
-const createRoomForm = document.getElementById("create-room-form");
-const formNote = document.getElementById("form-note");
+"use strict";
 
-const MAX_FILE_SIZE = 500 * 1024 * 1024;
+// ========================================
+// Syncflix — YouTube watch-party prototype
+// ========================================
 
-let selectedVideo = null;
-let previewUrl = null;
+const $ = (selector) => document.querySelector(selector);
 
-// Display file sizes in a readable format.
-function formatFileSize(bytes) {
-    if (bytes < 1024 * 1024) {
-        return `${(bytes / 1024).toFixed(1)} KB`;
-    }
+const createRoomForm = $("#create-room-form");
+const roomNameInput = $("#room-name");
+const youtubeLinkInput = $("#youtube-link");
+const formNote = $("#form-note");
 
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+const roomCodeInput = $("#room-code");
+const joinRoomButton = $("#join-room-button");
+const joinNote = $("#join-note");
+
+const watchRoom = $("#watch-room");
+const watchRoomName = $("#watch-room-name");
+const watchRoomStatus = $("#watch-room-status");
+const copyRoomLinkButton = $("#copy-room-link");
+
+const videoContainer = $("#video-container");
+const videoPlaceholder = $("#video-placeholder");
+const videoTitle = $("#video-title");
+const syncStatus = $("#sync-status");
+
+const participantCount = $("#participant-count");
+const participants = $("#participants");
+
+const chatForm = $("#chat-form");
+const chatInput = $("#chat-input");
+const chatMessages = $("#chat-messages");
+const emptyChat = $("#empty-chat");
+
+let currentRoom = null;
+let player = null;
+
+// ----------------------------------------
+// Helpers
+// ----------------------------------------
+
+function showMessage(element, message, isError = false) {
+    element.textContent = message;
+    element.style.color = isError ? "#f0647d" : "";
 }
 
-// Show a message below the form.
-function showMessage(message, isError = false) {
-    formNote.textContent = message;
-    formNote.style.color = isError ? "#e65b72" : "#a09da7";
+function createRoomId() {
+    // Generate a short room identifier.
+    return crypto.randomUUID().replaceAll("-", "").slice(0, 8);
 }
 
-// Validate a selected MP4.
-function validateVideo(file) {
-    if (!file) {
-        showMessage("Please choose a video first.", true);
-        return false;
-    }
-
-    const isMp4 =
-        file.name.toLowerCase().endsWith(".mp4") &&
-        (file.type === "video/mp4" || file.type === "");
-
-    if (!isMp4) {
-        showMessage("Please select an MP4 video.", true);
-        return false;
-    }
-
-    if (file.size === 0) {
-        showMessage("This file is empty. Choose another video.", true);
-        return false;
-    }
-
-    if (file.size > MAX_FILE_SIZE) {
-        showMessage("The video exceeds the 500 MB prototype limit.", true);
-        return false;
-    }
-
-    return true;
+function getRoomUrl(roomId) {
+    const url = new URL(window.location.href);
+    url.hash = `room=${encodeURIComponent(roomId)}`;
+    return url.toString();
 }
 
-// Update the upload area after a file is selected.
-function handleVideoSelection(file) {
-    if (!validateVideo(file)) {
-        selectedVideo = null;
-        fileInput.value = "";
-        uploadTitle.textContent = "Choose a video file";
-        uploadDescription.textContent =
-            "Click here to browse your device";
-        return;
+// Accept standard YouTube watch, short, embed and shorts URLs.
+function getYouTubeVideoId(rawUrl) {
+    let url;
+
+    try {
+        url = new URL(rawUrl.trim());
+    } catch {
+        return null;
     }
 
-    selectedVideo = file;
+    if (!["https:", "http:"].includes(url.protocol)) {
+        return null;
+    }
 
-    uploadTitle.textContent = file.name;
-    uploadDescription.textContent = formatFileSize(file.size);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
 
-    showMessage(
-        "Video selected. Create a room to preview it on this device."
-    );
+    let videoId = null;
+
+    if (host === "youtu.be") {
+        videoId = url.pathname.split("/").filter(Boolean)[0];
+    } else if (
+        host === "youtube.com" ||
+        host === "m.youtube.com" ||
+        host === "music.youtube.com" ||
+        host === "youtube-nocookie.com"
+    ) {
+        if (url.pathname === "/watch") {
+            videoId = url.searchParams.get("v");
+        } else {
+            const match = url.pathname.match(
+                /^\/(?:embed|shorts|live)\/([^/?]+)/
+            );
+
+            if (match) {
+                videoId = match[1];
+            }
+        }
+    }
+
+    // YouTube video IDs are normally 11 characters.
+    return videoId && /^[a-zA-Z0-9_-]{11}$/.test(videoId)
+        ? videoId
+        : null;
 }
 
-// File picker.
-fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0];
+function getRoomIdFromInput(value) {
+    const input = value.trim();
 
-    if (file) {
-        handleVideoSelection(file);
-    }
-});
-
-// Drag-and-drop support.
-dropzone.addEventListener("dragover", (event) => {
-    event.preventDefault();
-    dropzone.classList.add("is-dragging");
-});
-
-dropzone.addEventListener("dragleave", () => {
-    dropzone.classList.remove("is-dragging");
-});
-
-dropzone.addEventListener("drop", (event) => {
-    event.preventDefault();
-    dropzone.classList.remove("is-dragging");
-
-    const file = event.dataTransfer.files[0];
-
-    if (!file) {
-        return;
+    if (!input) {
+        return null;
     }
 
-    handleVideoSelection(file);
-});
+    // Accept a complete invite URL.
+    try {
+        const url = new URL(input);
 
-// Release the previous preview URL when changing videos.
-function releasePreviewUrl() {
-    if (previewUrl) {
-        URL.revokeObjectURL(previewUrl);
-        previewUrl = null;
+        if (url.hash.startsWith("#room=")) {
+            const id = url.hash.slice("#room=".length);
+
+            return /^[a-zA-Z0-9_-]{8}$/.test(id)
+                ? id
+                : null;
+        }
+    } catch {
+        // It may be a room code instead of a URL.
     }
+
+    // Accept a raw room code.
+    return /^[a-zA-Z0-9_-]{8}$/.test(input)
+        ? input
+        : null;
 }
 
-// Create a local video preview.
-function showLocalRoom(file, roomName) {
-    releasePreviewUrl();
-    previewUrl = URL.createObjectURL(file);
+// ----------------------------------------
+// YouTube player
+// ----------------------------------------
 
-    let room = document.getElementById("local-room");
-
-    if (!room) {
-        room = document.createElement("section");
-        room.id = "local-room";
-        room.className = "local-room";
-        room.setAttribute("aria-live", "polite");
-
-        document.getElementById("create-room").after(room);
+function renderVideo(videoId) {
+    // Remove any previous player.
+    if (player) {
+        player.destroy();
+        player = null;
     }
 
-    room.replaceChildren();
+    videoContainer.replaceChildren();
 
-    const heading = document.createElement("h2");
-    heading.textContent = roomName;
+    const iframe = document.createElement("iframe");
 
-    const description = document.createElement("p");
-    description.textContent =
-        "Local preview · This room is not online or shareable yet.";
+    iframe.src =
+        `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` +
+        "?enablejsapi=1&playsinline=1&rel=0";
 
-    description.style.color = "#a09da7";
-    description.style.margin = "8px 0 20px";
+    iframe.title = "YouTube video player";
+    iframe.allow =
+        "accelerometer; autoplay; clipboard-write; encrypted-media; " +
+        "gyroscope; picture-in-picture; web-share";
+    iframe.allowFullscreen = true;
+    iframe.referrerPolicy = "strict-origin-when-cross-origin";
 
-    const video = document.createElement("video");
-    video.controls = true;
-    video.preload = "metadata";
-    video.playsInline = true;
-    video.src = previewUrl;
-    video.style.display = "block";
-    video.style.width = "100%";
-    video.style.maxWidth = "900px";
-    video.style.maxHeight = "70vh";
-    video.style.background = "#000";
-    video.style.borderRadius = "6px";
+    videoContainer.appendChild(iframe);
 
-    const closeButton = document.createElement("button");
-    closeButton.type = "button";
-    closeButton.textContent = "Close preview";
-    closeButton.style.marginTop = "16px";
-    closeButton.style.padding = "10px 14px";
-    closeButton.style.background = "#202027";
-    closeButton.style.color = "#f1f0f3";
-    closeButton.style.border = "1px solid #303039";
-    closeButton.style.borderRadius = "5px";
+    videoTitle.textContent = "YouTube video";
+    syncStatus.textContent = "Local playback";
+}
 
-    closeButton.addEventListener("click", () => {
-        video.pause();
-        video.removeAttribute("src");
-        video.load();
+// ----------------------------------------
+// Room interface
+// ----------------------------------------
 
-        releasePreviewUrl();
-        room.remove();
-    });
+function openRoom({ roomId, name, videoId }) {
+    currentRoom = {
+        id: roomId,
+        name,
+        videoId
+    };
 
-    room.append(heading, description, video, closeButton);
+    watchRoomName.textContent = name;
+    watchRoomStatus.textContent = "Room ready";
+    participantCount.textContent = "Just you for now";
 
-    room.scrollIntoView({
+    participants.replaceChildren();
+
+    const participant = document.createElement("div");
+    participant.className = "participant";
+
+    const avatar = document.createElement("span");
+    avatar.className = "avatar";
+    avatar.textContent = "Y";
+
+    const nameLabel = document.createElement("span");
+    nameLabel.textContent = "You";
+
+    const hostLabel = document.createElement("span");
+    hostLabel.className = "host-label";
+    hostLabel.textContent = "HOST";
+
+    participant.append(avatar, nameLabel, hostLabel);
+    participants.appendChild(participant);
+
+    chatMessages.replaceChildren();
+    chatMessages.appendChild(emptyChat);
+    emptyChat.hidden = false;
+
+    if (videoId) {
+        renderVideo(videoId);
+    } else {
+        videoContainer.replaceChildren();
+        videoPlaceholder.hidden = false;
+        videoContainer.appendChild(videoPlaceholder);
+        videoTitle.textContent = "No video selected";
+        syncStatus.textContent = "Waiting for video";
+    }
+
+    watchRoom.hidden = false;
+    watchRoom.scrollIntoView({
         behavior: "smooth",
         block: "start"
     });
 
-    showMessage(
-        "Local preview opened. Uploading and online rooms are not implemented yet."
-    );
+    // Reflect the room in the URL.
+    history.replaceState(null, "", getRoomUrl(roomId));
 }
 
-// Handle room creation.
+// ----------------------------------------
+// Create room
+// ----------------------------------------
+
 createRoomForm.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    if (!selectedVideo || !validateVideo(selectedVideo)) {
-        showMessage("Choose a valid MP4 before creating a room.", true);
+    const videoId = getYouTubeVideoId(youtubeLinkInput.value);
+
+    if (!videoId) {
+        showMessage(
+            formNote,
+            "Enter a valid YouTube video link.",
+            true
+        );
+        youtubeLinkInput.focus();
         return;
     }
 
-    const roomName =
-        roomNameInput.value.trim() || "Movie night";
+    const roomId = createRoomId();
+    const name = roomNameInput.value.trim() || "Movie night";
 
-    showLocalRoom(selectedVideo, roomName);
+    openRoom({
+        roomId,
+        name,
+        videoId
+    });
+
+    showMessage(
+        formNote,
+        "Room created on this device. Online sharing needs a backend."
+    );
 });
 
-// Release memory when leaving the page.
-window.addEventListener("beforeunload", releasePreviewUrl);
+// ----------------------------------------
+// Join room
+// ----------------------------------------
+
+joinRoomButton.addEventListener("click", () => {
+    const roomId = getRoomIdFromInput(roomCodeInput.value);
+
+    if (!roomId) {
+        showMessage(
+            joinNote,
+            "Enter a valid 8-character room code or invite link.",
+            true
+        );
+        return;
+    }
+
+    // The frontend cannot retrieve another user's room data.
+    // This only opens the room interface for the supplied ID.
+    openRoom({
+        roomId,
+        name: "Watch party",
+        videoId: null
+    });
+
+    showMessage(
+        joinNote,
+        "Room interface opened. Joining real shared rooms needs a backend."
+    );
+});
+
+// Allow Enter to join.
+roomCodeInput.addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+        event.preventDefault();
+        joinRoomButton.click();
+    }
+});
+
+// ----------------------------------------
+// Copy invite link
+// ----------------------------------------
+
+copyRoomLinkButton.addEventListener("click", async () => {
+    if (!currentRoom) {
+        return;
+    }
+
+    const inviteUrl = getRoomUrl(currentRoom.id);
+
+    try {
+        await navigator.clipboard.writeText(inviteUrl);
+
+        copyRoomLinkButton.textContent = "Link copied ✓";
+    } catch {
+        // Clipboard API can require HTTPS or localhost.
+        window.prompt("Copy this invite link:", inviteUrl);
+    }
+
+    window.setTimeout(() => {
+        copyRoomLinkButton.textContent = "Copy invite link";
+    }, 1800);
+});
+
+// ----------------------------------------
+// Basic local chat
+// ----------------------------------------
+
+chatForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const message = chatInput.value.trim();
+
+    if (!message) {
+        return;
+    }
+
+    if (emptyChat.isConnected) {
+        emptyChat.remove();
+    }
+
+    const messageElement = document.createElement("div");
+    messageElement.className = "chat-message";
+
+    const header = document.createElement("div");
+    header.className = "chat-message-header";
+
+    const sender = document.createElement("span");
+    sender.className = "chat-message-name";
+    sender.textContent = "You";
+
+    const time = document.createElement("span");
+    time.className = "chat-message-time";
+    time.textContent = new Date().toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+    });
+
+    const text = document.createElement("p");
+    text.className = "chat-message-text";
+    text.textContent = message;
+
+    header.append(sender, time);
+    messageElement.append(header, text);
+    chatMessages.appendChild(messageElement);
+
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+    chatInput.value = "";
+    chatInput.focus();
+});
+
+// ----------------------------------------
+// Reopen a room URL
+// ----------------------------------------
+
+function restoreRoomFromUrl() {
+    const hash = window.location.hash;
+
+    if (!hash.startsWith("#room=")) {
+        return;
+    }
+
+    const roomId = hash.slice("#room=".length);
+
+    if (!/^[a-zA-Z0-9_-]{8}$/.test(roomId)) {
+        return;
+    }
+
+    // Room details aren't persisted or shared yet.
+    openRoom({
+        roomId,
+        name: "Watch party",
+        videoId: null
+    });
+}
+
+restoreRoomFromUrl();

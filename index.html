@@ -5,14 +5,18 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#111114">
+
     <title>Syncflix — Watch together</title>
     <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
     <header class="navbar">
-        <a class="logo" href="#home">sync<span>flix</span></a>
+        <a class="logo" href="#home">
+            sync<span>flix</span>
+        </a>
 
-        <nav>
+        <nav class="nav-links">
             <a href="#home">Home</a>
             <a href="#how-it-works">How it works</a>
         </nav>
@@ -21,65 +25,55 @@
     </header>
 
     <main id="home">
+        <!-- Landing section -->
         <section class="hero">
             <div class="hero-copy">
-                <p class="eyebrow">A BETTER WAY TO WATCH TOGETHER</p>
+                <p class="eyebrow">WATCH TOGETHER, FROM ANYWHERE</p>
 
-                <h1>Movie night,<br>sorted.</h1>
+                <h1>Your people.<br>Your video.<br>Your room.</h1>
 
                 <p class="subtitle">
-                    Got a video? Make a room, send your friends
-                    the link, and watch it together.
+                    Drop a YouTube link, invite your friends,
+                    and watch together. It's that simple.
                 </p>
 
                 <div class="hero-actions">
                     <a class="button button-primary" href="#create-room">
-                        Get started
+                        Create a room
                     </a>
+
                     <a class="button button-secondary" href="#how-it-works">
                         How it works
                     </a>
                 </div>
             </div>
+
+            <div class="hero-note">
+                <span class="status-dot"></span>
+                <span>No uploads. Just a link and your friends.</span>
+            </div>
         </section>
 
+        <!-- Create or join a room -->
         <section class="create-section" id="create-room">
             <div class="section-intro">
-                <h2>Create a watch room</h2>
-                <p>Start with a video from your device.</p>
+                <p class="eyebrow">GET THE GROUP TOGETHER</p>
+                <h2>Ready for a watch party?</h2>
+                <p>Start a room or join one your friend has created.</p>
             </div>
 
             <div class="room-layout">
-                <form class="upload-panel" id="create-room-form">
+                <form class="room-panel" id="create-room-form">
                     <div class="panel-heading">
+                        <span class="panel-icon">↗</span>
                         <div>
-                            <h3>Choose a video</h3>
-                            <p>Select an MP4 file to get started.</p>
+                            <h3>Create a room</h3>
+                            <p>You're in charge of this watch party.</p>
                         </div>
                     </div>
 
-                    <label class="upload-dropzone" for="video-file">
-                        <span class="upload-icon">↑</span>
-                        <strong id="upload-title">Choose a video file</strong>
-                        <span id="upload-description">
-                            Click here to browse your device
-                        </span>
-                        <span class="file-requirement">
-                            MP4 files only
-                        </span>
-                    </label>
-
-                    <input
-                        id="video-file"
-                        name="video"
-                        type="file"
-                        accept=".mp4,video/mp4"
-                        hidden
-                    >
-
                     <label class="field-label" for="room-name">
                         Room name
-                        <span>Optional</span>
                     </label>
 
                     <input
@@ -90,64 +84,170 @@
                         placeholder="Friday movie night"
                     >
 
-                    <button
-                        class="button button-primary create-submit"
-                        type="submit"
+                    <label class="field-label" for="youtube-link">
+                        YouTube link
+                    </label>
+
+                    <input
+                        id="youtube-link"
+                        name="youtubeLink"
+                        type="url"
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        required
                     >
+
+                    <button class="button button-primary create-submit" type="submit">
                         Create room →
                     </button>
 
                     <p class="form-note" id="form-note">
-                        Only upload videos you're allowed to share.
+                        Use a YouTube video that allows embedding.
                     </p>
                 </form>
 
-                <aside class="room-info">
-                    <h3>How it works</h3>
+                <div class="room-panel join-panel">
+                    <div class="panel-heading">
+                        <span class="panel-icon">↘</span>
+                        <div>
+                            <h3>Join a room</h3>
+                            <p>Got an invite from a friend?</p>
+                        </div>
+                    </div>
 
-                    <ul class="feature-list">
-                        <li>
-                            <span class="feature-icon">1</span>
-                            <span>
-                                <strong>Pick a video</strong>
-                                <small>Choose an MP4 from your device.</small>
-                            </span>
-                        </li>
+                    <label class="field-label" for="room-code">
+                        Room code or link
+                    </label>
 
-                        <li>
-                            <span class="feature-icon">2</span>
-                            <span>
-                                <strong>Create a room</strong>
-                                <small>Give your room a name.</small>
-                            </span>
-                        </li>
+                    <input
+                        id="room-code"
+                        name="roomCode"
+                        type="text"
+                        placeholder="Paste your invite link or code"
+                    >
 
-                        <li>
-                            <span class="feature-icon">3</span>
-                            <span>
-                                <strong>Invite your friends</strong>
-                                <small>Share the room link and watch together.</small>
-                            </span>
-                        </li>
-                    </ul>
+                    <button class="button button-secondary create-submit"
+                            id="join-room-button" type="button">
+                        Join room →
+                    </button>
+
+                    <p class="form-note" id="join-note">
+                        No account needed for the prototype.
+                    </p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Watch room: shown when a room is opened -->
+        <section class="watch-room" id="watch-room" hidden>
+            <div class="watch-room-header">
+                <div>
+                    <p class="eyebrow">YOU'RE WATCHING TOGETHER</p>
+                    <h2 id="watch-room-name">Movie night</h2>
+                    <p class="room-status">
+                        <span class="status-dot"></span>
+                        <span id="watch-room-status">Room created</span>
+                    </p>
+                </div>
+
+                <button class="button button-secondary" id="copy-room-link" type="button">
+                    Copy invite link
+                </button>
+            </div>
+
+            <div class="watch-layout">
+                <section class="player-panel">
+                    <div class="video-container" id="video-container">
+                        <div class="video-placeholder" id="video-placeholder">
+                            <span class="play-symbol">▶</span>
+                            <p>Your YouTube video will appear here.</p>
+                        </div>
+                    </div>
+
+                    <div class="player-footer">
+                        <div>
+                            <p class="video-label">NOW PLAYING</p>
+                            <h3 id="video-title">Waiting for video</h3>
+                        </div>
+
+                        <span class="sync-status" id="sync-status">
+                            Sync not connected
+                        </span>
+                    </div>
+                </section>
+
+                <aside class="chat-panel">
+                    <div class="chat-header">
+                        <div>
+                            <h3>Room chat</h3>
+                            <p id="participant-count">Just you for now</p>
+                        </div>
+                        <span class="chat-indicator"></span>
+                    </div>
+
+                    <div class="participants" id="participants">
+                        <div class="participant">
+                            <span class="avatar">Y</span>
+                            <span>You</span>
+                            <span class="host-label">HOST</span>
+                        </div>
+                    </div>
+
+                    <div class="chat-messages" id="chat-messages" aria-live="polite">
+                        <div class="empty-chat" id="empty-chat">
+                            <span>✳</span>
+                            <p>The group chat starts here.</p>
+                            <small>Send the invite link to bring everyone in.</small>
+                        </div>
+                    </div>
+
+                    <form class="chat-form" id="chat-form">
+                        <input
+                            id="chat-input"
+                            type="text"
+                            maxlength="500"
+                            placeholder="Say something..."
+                            autocomplete="off"
+                            aria-label="Chat message"
+                        >
+                        <button type="submit" aria-label="Send message">↑</button>
+                    </form>
                 </aside>
             </div>
         </section>
 
+        <!-- How it works -->
         <section class="steps-section" id="how-it-works">
             <div class="section-intro">
+                <p class="eyebrow">THREE STEPS</p>
                 <h2>That's pretty much it.</h2>
-                <p>
-                    No movie catalogue to dig through.
-                    Just your video and your friends.
-                </p>
+                <p>No video uploads. No giant catalogue. Just your group.</p>
+            </div>
+
+            <div class="steps-grid">
+                <article class="step">
+                    <span class="step-number">01</span>
+                    <h3>Drop a link</h3>
+                    <p>Pick a YouTube video you want to watch together.</p>
+                </article>
+
+                <article class="step">
+                    <span class="step-number">02</span>
+                    <h3>Invite your people</h3>
+                    <p>Share your room link with friends on any device.</p>
+                </article>
+
+                <article class="step">
+                    <span class="step-number">03</span>
+                    <h3>Press play</h3>
+                    <p>Watch together, chat, and react in the same room.</p>
+                </article>
             </div>
         </section>
     </main>
 
     <footer class="footer">
         <a class="logo" href="#home">sync<span>flix</span></a>
-        <p>Made for movie nights with friends.</p>
+        <p>Made for watching together.</p>
     </footer>
 
     <script src="script.js"></script>
