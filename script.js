@@ -625,3 +625,44 @@ socket.on("playback-update", (data) => {
         isApplyingRemotePlayback = false;
     }, 700);
 });
+
+
+window.setInterval(() => {
+    if (!player || !currentRoom || !currentRoom.hostId) return;
+    if (socket.id === currentRoom.hostId) return;
+    if (!hostPlayback || hostPlayback.playing) return;
+
+    const state = player.getPlayerState();
+
+    if (state === YT.PlayerState.PLAYING ||
+        state === YT.PlayerState.BUFFERING) {
+        isApplyingRemotePlayback = true;
+        player.pauseVideo();
+
+        syncStatus.textContent =
+            "⏸ The host has paused. Please wait for them to resume.";
+
+        window.setTimeout(() => {
+            isApplyingRemotePlayback = false;
+        }, 300);
+    }
+}, 300);
+// Keep viewers updated with the host's current position.
+window.setInterval(() => {
+    if (!player || !currentRoom) return;
+    if (socket.id !== currentRoom.hostId) return;
+
+    const state = player.getPlayerState();
+
+    if (
+        state !== YT.PlayerState.PLAYING &&
+        state !== YT.PlayerState.PAUSED
+    ) {
+        return;
+    }
+
+    socket.emit("playback-update", {
+        currentTime: player.getCurrentTime(),
+        playing: state === YT.PlayerState.PLAYING
+    });
+}, 1000);
