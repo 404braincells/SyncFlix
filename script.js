@@ -155,12 +155,13 @@ function renderVideo(videoId) {
         "gyroscope; picture-in-picture; web-share";
     iframe.allowFullscreen = true;
     iframe.referrerPolicy = "strict-origin-when-cross-origin";
+    iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
 
     videoContainer.appendChild(iframe);
 
     videoTitle.textContent = "YouTube video";
     syncStatus.textContent = "Local playback";
-}
+}   
 
 // ----------------------------------------
 // Room interface

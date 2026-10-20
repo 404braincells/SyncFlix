@@ -480,3 +480,72 @@ input::placeholder {
         flex-direction: column;
     }
 }
+
+
+.watch-room {
+    max-width: 1440px;
+    padding: 36px clamp(18px, 4vw, 56px) 56px;
+}
+
+.watch-layout {
+    grid-template-columns: minmax(0, 1fr) 320px;
+    gap: 20px;
+    align-items: stretch;
+}
+
+.player-panel {
+    align-self: start;
+}
+
+.video-container {
+    width: 100%;
+    aspect-ratio: 16 / 9;
+}
+
+.player-footer {
+    padding: 18px 20px;
+}
+
+.chat-panel {
+    min-height: 0;
+    height: clamp(420px, 56vw, 650px);
+}
+
+.chat-messages {
+    flex: 1;
+    min-height: 0;
+    max-height: none;
+}
+
+.chat-form {
+    margin-top: auto;
+}
+
+/* Make the room feel like the main app */
+body:has(.watch-room:not([hidden])) .steps-section {
+    display: none;
+}
+
+@media (max-width: 850px) {
+    .watch-layout {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .chat-panel {
+        height: 380px;
+    }
+}
+
+@media (max-width: 550px) {
+    .watch-room {
+        padding: 28px 14px 40px;
+    }
+
+    .watch-room-header {
+        align-items: flex-start;
+    }
+
+    .player-footer {
+        padding: 14px;
+    }
+}
