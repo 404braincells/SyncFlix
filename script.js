@@ -227,8 +227,8 @@ function openRoom({ roomId, name, videoId, create = false }) {
     currentRoom = {
         id: roomId,
         name,
-        videoId
-        create: true
+        videoId,
+        hostId: null
     };
 
     watchRoomName.textContent = name;
@@ -310,9 +310,10 @@ createRoomForm.addEventListener("submit", (event) => {
     const name = roomNameInput.value.trim() || "Movie night";
 
     openRoom({
-        roomId,
-        name,
-        videoId
+    roomId,
+    name,
+    videoId,
+    create: true
     });
 
     showMessage(
@@ -342,13 +343,11 @@ joinRoomButton.addEventListener("click", () => {
     openRoom({
         roomId,
         name: "Watch party",
-        videoId: null
+        videoId: null,
+        create: false
     });
 
-    showMessage(
-        joinNote,
-        "Room interface opened. Joining real shared rooms needs a backend."
-    );
+    showMessage(joinNote, "Connecting to room...");
 });
 
 // Allow Enter to join.
@@ -446,9 +445,36 @@ socket.on("system-message", (message) => {
     addChatMessage("System", message, true);
 });
 
-socket.on("participants", (count) => {
+socket.on("participants", (members) => {
+    if (!Array.isArray(members)) return;
+
     participantCount.textContent =
-        `${count} participant${count === 1 ? "" : "s"} online`;
+        `${members.length} participant${members.length === 1 ? "" : "s"} online`;
+
+    participants.replaceChildren();
+
+    members.forEach((member) => {
+        const participant = document.createElement("div");
+        participant.className = "participant";
+
+        const avatar = document.createElement("span");
+        avatar.className = "avatar";
+        avatar.textContent = member.emoji || "🍿";
+
+        const name = document.createElement("span");
+        name.textContent = member.username;
+
+        participant.append(avatar, name);
+
+        if (member.isHost) {
+            const hostLabel = document.createElement("span");
+            hostLabel.className = "host-label";
+            hostLabel.textContent = "HOST";
+            participant.appendChild(hostLabel);
+        }
+
+        participants.appendChild(participant);
+    });
 });
 
 socket.on("joined-room", ({ roomId }) => {
