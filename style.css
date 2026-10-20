@@ -549,3 +549,209 @@ body:has(.watch-room:not([hidden])) .steps-section {
         padding: 14px;
     }
 }
+
+/* ===== Syncflix welcome modal ===== */
+
+.welcome-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(8, 8, 12, 0.86);
+    backdrop-filter: blur(12px);
+}
+
+.welcome-overlay[hidden] {
+    display: none !important;
+}
+
+.welcome-card {
+    width: min(100%, 420px);
+    padding: 32px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 24px;
+    background: #17171c;
+    box-shadow: 0 24px 100px rgba(0, 0, 0, 0.45);
+    text-align: center;
+    animation: welcome-enter 0.35s ease-out;
+}
+
+.welcome-logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -1px;
+}
+
+.welcome-logo span {
+    color: #f0647d;
+}
+
+.welcome-emoji {
+    display: grid;
+    place-items: center;
+    width: 82px;
+    height: 82px;
+    margin: 24px auto 18px;
+    border: 1px solid rgba(240, 100, 125, 0.3);
+    border-radius: 26px;
+    background: rgba(240, 100, 125, 0.1);
+    font-size: 42px;
+    transition: transform 0.2s ease;
+}
+
+.welcome-card h2 {
+    margin: 8px 0;
+    font-size: 30px;
+    letter-spacing: -1px;
+}
+
+.welcome-description {
+    margin: 0 auto 24px;
+    max-width: 300px;
+    color: #a5a5b2;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.welcome-card .field-label {
+    display: block;
+    margin: 0 0 9px;
+    text-align: left;
+    font-size: 13px;
+}
+
+.welcome-card input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 14px 15px;
+    border: 1px solid #383840;
+    border-radius: 12px;
+    outline: none;
+    background: #101014;
+    color: #fff;
+    font: inherit;
+}
+
+.welcome-card input:focus {
+    border-color: #f0647d;
+    box-shadow: 0 0 0 3px rgba(240, 100, 125, 0.12);
+}
+
+.avatar-picker {
+    margin: 22px 0;
+}
+
+.avatar-picker .field-label {
+    text-align: center;
+}
+
+.avatar-options {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.avatar-option {
+    width: 44px;
+    height: 44px;
+    border: 1px solid #383840;
+    border-radius: 14px;
+    background: #222229;
+    font-size: 22px;
+    cursor: pointer;
+    transition: transform 0.15s, border-color 0.15s;
+}
+
+.avatar-option:hover {
+    transform: translateY(-3px);
+}
+
+.avatar-option.selected {
+    border-color: #f0647d;
+    background: rgba(240, 100, 125, 0.14);
+}
+
+.welcome-submit {
+    width: 100%;
+    justify-content: center;
+    padding: 15px;
+}
+
+.welcome-footnote {
+    margin: 16px 0 0;
+    color: #888894;
+    font-size: 12px;
+}
+
+@keyframes welcome-enter {
+    from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}
+
+@media (max-width: 480px) {
+    .welcome-card {
+        padding: 26px 22px;
+    }
+
+    .welcome-card h2 {
+        font-size: 26px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .welcome-card {
+        animation: none;
+    }
+
+    .avatar-option,
+    .welcome-emoji {
+        transition: none;
+    }
+}
+
+.room-code-row {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 14px 0;
+}
+
+.room-code-row > span {
+    color: #a5a5b2;
+    font-size: 11px;
+    letter-spacing: 1px;
+}
+
+.room-code-row strong {
+    padding: 7px 11px;
+    border: 1px solid #383840;
+    border-radius: 8px;
+    background: #1a1a20;
+    color: #f0647d;
+    font-family: monospace;
+    font-size: 17px;
+    letter-spacing: 2px;
+}
+
+#copy-room-code {
+    padding: 7px 10px;
+    border: 1px solid #383840;
+    border-radius: 8px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+
+#copy-room-code:hover {
+    border-color: #f0647d;
+}

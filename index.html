@@ -139,20 +139,32 @@
 
         <!-- Watch room: shown when a room is opened -->
         <section class="watch-room" id="watch-room" hidden>
+            
             <div class="watch-room-header">
                 <div>
                     <p class="eyebrow">YOU'RE WATCHING TOGETHER</p>
                     <h2 id="watch-room-name">Movie night</h2>
+
+                    <div class="room-code-row">
+                        <span>ROOM CODE</span>
+                        <strong id="visible-room-code">--------</strong>
+                        <button id="copy-room-code" type="button">
+                            Copy code
+                        </button>
+                    </div>
+
                     <p class="room-status">
                         <span class="status-dot"></span>
                         <span id="watch-room-status">Room created</span>
                     </p>
                 </div>
 
-                <button class="button button-secondary" id="copy-room-link" type="button">
+                <button class="button button-secondary"
+                    id="copy-room-link" type="button">
                     Copy invite link
                 </button>
             </div>
+
 
             <div class="watch-layout">
                 <section class="player-panel">
@@ -249,7 +261,64 @@
         <a class="logo" href="#home">sync<span>flix</span></a>
         <p>Made for watching together.</p>
     </footer>
+    
 
-    <script src="script.js"></script>
+<!-- Welcome modal -->
+<div class="welcome-overlay" id="welcome-modal" hidden>
+    <form class="welcome-card" id="welcome-form">
+        <div class="welcome-logo">sync<span>flix</span></div>
+
+        <div class="welcome-emoji" id="welcome-emoji">🍿</div>
+
+        <p class="eyebrow">YOUR SEAT IS WAITING</p>
+        <h2>Who's watching?</h2>
+        <p class="welcome-description">
+            Pick a name, grab your snacks, and join the party.
+        </p>
+
+        <label class="field-label" for="display-name">
+            Your movie-night name
+        </label>
+
+        <input
+            id="display-name"
+            type="text"
+            maxlength="24"
+            placeholder="e.g. popcorn.exe"
+            autocomplete="nickname"
+            required
+        >
+
+        <div class="avatar-picker">
+            <p class="field-label">Pick your vibe</p>
+            <div class="avatar-options">
+                <button type="button" class="avatar-option selected"
+                    data-emoji="🍿">🍿</button>
+                <button type="button" class="avatar-option"
+                    data-emoji="👾">👾</button>
+                <button type="button" class="avatar-option"
+                    data-emoji="🦊">🦊</button>
+                <button type="button" class="avatar-option"
+                    data-emoji="🐸">🐸</button>
+                <button type="button" class="avatar-option"
+                    data-emoji="👻">👻</button>
+                <button type="button" class="avatar-option"
+                    data-emoji="🐼">🐼</button>
+            </div>
+        </div>
+
+        <button class="button button-primary welcome-submit" type="submit">
+            Let's watch! →
+        </button>
+
+        <p class="welcome-footnote">
+            No account. No fuss. Just vibes.
+        </p>
+    </form>
+</div>
+
+
+<script src="/socket.io/socket.io.js"></script>
+<script src="script.js"></script>
 </body>
 </html>

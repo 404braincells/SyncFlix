@@ -28,14 +28,69 @@ const syncStatus = $("#sync-status");
 
 const participantCount = $("#participant-count");
 const participants = $("#participants");
-
+const visibleRoomCode = $("#visible-room-code");
+const copyRoomCodeButton = $("#copy-room-code");
 const chatForm = $("#chat-form");
 const chatInput = $("#chat-input");
 const chatMessages = $("#chat-messages");
 const emptyChat = $("#empty-chat");
 
+const socket = io();
+
+
 let currentRoom = null;
 let player = null;
+let displayName = sessionStorage.getItem("syncflix-name");
+
+const welcomeModal = $("#welcome-modal");
+const welcomeForm = $("#welcome-form");
+const displayNameInput = $("#display-name");
+const welcomeEmoji = $("#welcome-emoji");
+
+let selectedEmoji = sessionStorage.getItem("syncflix-emoji") || "🍿";
+let isCreatingRoom = false;
+
+if (displayName) {
+    welcomeModal.hidden = true;
+    displayNameInput.value = displayName;
+} else {
+    welcomeModal.hidden = false;
+}
+
+welcomeEmoji.textContent = selectedEmoji;
+
+document.querySelectorAll(".avatar-option").forEach((button) => {
+    button.classList.toggle(
+        "selected",
+        button.dataset.emoji === selectedEmoji
+    );
+
+    button.addEventListener("click", () => {
+        selectedEmoji = button.dataset.emoji;
+        welcomeEmoji.textContent = selectedEmoji;
+
+        document.querySelectorAll(".avatar-option").forEach((option) => {
+            option.classList.toggle("selected", option === button);
+        });
+    });
+});
+
+welcomeForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const name = displayNameInput.value.trim().slice(0, 24);
+
+    if (!name) {
+        displayNameInput.focus();
+        return;
+    }
+
+    displayName = name;
+    sessionStorage.setItem("syncflix-name", displayName);
+    sessionStorage.setItem("syncflix-emoji", selectedEmoji);
+
+    welcomeModal.hidden = true;
+});
 
 // ----------------------------------------
 // Helpers
@@ -167,17 +222,19 @@ function renderVideo(videoId) {
 // Room interface
 // ----------------------------------------
 
-function openRoom({ roomId, name, videoId }) {
+function openRoom({ roomId, name, videoId, create = false }) {
+    isCreatingRoom = create;
     currentRoom = {
         id: roomId,
         name,
         videoId
+        create: true
     };
 
     watchRoomName.textContent = name;
     watchRoomStatus.textContent = "Room ready";
     participantCount.textContent = "Just you for now";
-
+    visibleRoomCode.textContent = roomId;
     participants.replaceChildren();
 
     const participant = document.createElement("div");
@@ -185,10 +242,10 @@ function openRoom({ roomId, name, videoId }) {
 
     const avatar = document.createElement("span");
     avatar.className = "avatar";
-    avatar.textContent = "Y";
+    avatar.textContent = selectedEmoji;
 
     const nameLabel = document.createElement("span");
-    nameLabel.textContent = "You";
+    nameLabel.textContent = displayName;
 
     const hostLabel = document.createElement("span");
     hostLabel.className = "host-label";
@@ -219,6 +276,15 @@ function openRoom({ roomId, name, videoId }) {
 
     // Reflect the room in the URL.
     history.replaceState(null, "", getRoomUrl(roomId));
+
+    socket.emit("join-room", {
+    roomId,
+    username: displayName,
+    emoji: selectedEmoji,
+    roomName: name,
+    videoId,
+    create: isCreatingRoom
+});
 }
 
 // ----------------------------------------
@@ -322,15 +388,8 @@ copyRoomLinkButton.addEventListener("click", async () => {
 // Basic local chat
 // ----------------------------------------
 
-chatForm.addEventListener("submit", (event) => {
-    event.preventDefault();
 
-    const message = chatInput.value.trim();
-
-    if (!message) {
-        return;
-    }
-
+function addChatMessage(username, message, isSystem = false) {
     if (emptyChat.isConnected) {
         emptyChat.remove();
     }
@@ -343,7 +402,7 @@ chatForm.addEventListener("submit", (event) => {
 
     const sender = document.createElement("span");
     sender.className = "chat-message-name";
-    sender.textContent = "You";
+    sender.textContent = username;
 
     const time = document.createElement("span");
     time.className = "chat-message-time";
@@ -356,15 +415,65 @@ chatForm.addEventListener("submit", (event) => {
     text.className = "chat-message-text";
     text.textContent = message;
 
+    if (isSystem) {
+        text.style.fontStyle = "italic";
+    }
+
     header.append(sender, time);
     messageElement.append(header, text);
     chatMessages.appendChild(messageElement);
-
     chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+
+chatForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    const message = chatInput.value.trim();
+
+    if (!message || !currentRoom) return;
+
+    socket.emit("chat-message", message);
+
     chatInput.value = "";
     chatInput.focus();
 });
 
+socket.on("chat-message", ({ username, message }) => {
+    addChatMessage(username, message);
+});
+
+socket.on("system-message", (message) => {
+    addChatMessage("System", message, true);
+});
+
+socket.on("participants", (count) => {
+    participantCount.textContent =
+        `${count} participant${count === 1 ? "" : "s"} online`;
+});
+
+socket.on("joined-room", ({ roomId }) => {
+    if (currentRoom?.id === roomId) {
+        watchRoomStatus.textContent = "Connected";
+    }
+});
+
+socket.on("error-message", (message) => {
+    watchRoomStatus.textContent = message;
+});
+copyRoomCodeButton.addEventListener("click", async () => {
+    if (!currentRoom) return;
+
+    try {
+        await navigator.clipboard.writeText(currentRoom.id);
+        copyRoomCodeButton.textContent = "Copied!";
+
+        setTimeout(() => {
+            copyRoomCodeButton.textContent = "Copy code";
+        }, 1500);
+    } catch {
+        window.prompt("Copy your room code:", currentRoom.id);
+    }
+});
 // ----------------------------------------
 // Reopen a room URL
 // ----------------------------------------
@@ -391,3 +500,20 @@ function restoreRoomFromUrl() {
 }
 
 restoreRoomFromUrl();
+
+socket.on("room-state", ({ roomId, name, videoId, hostId }) => {
+    if (!currentRoom || currentRoom.id !== roomId) return;
+
+    currentRoom.name = name;
+    currentRoom.videoId = videoId;
+    currentRoom.hostId = hostId;
+
+    watchRoomName.textContent = name;
+    visibleRoomCode.textContent = roomId;
+
+    if (videoId && currentRoom.videoId !== videoId) {
+        renderVideo(videoId);
+    } else if (videoId && videoTitle.textContent !== "YouTube video") {
+        renderVideo(videoId);
+    }
+});
