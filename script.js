@@ -52,6 +52,10 @@ const welcomeEmoji = $("#welcome-emoji");
 
 let selectedEmoji = sessionStorage.getItem("syncflix-emoji") || "🍿";
 let isCreatingRoom = false;
+let hostPlayback = {
+    currentTime: 0,
+    playing: false
+};
 
 if (displayName) {
     welcomeModal.hidden = true;
@@ -224,7 +228,24 @@ function renderVideo(videoId) {
                     if (isApplyingRemotePlayback || !currentRoom) return;
 
                     // Only the host publishes playback changes.
-                    if (socket.id !== currentRoom.hostId) return;
+                    if (socket.id !== currentRoom.hostId) {
+    if (
+        event.data === YT.PlayerState.PLAYING &&
+        !hostPlayback.playing
+    ) {
+        syncStatus.textContent =
+            "⏸ The host has paused the video. Please wait.";
+
+        isApplyingRemotePlayback = true;
+        player.pauseVideo();
+
+        window.setTimeout(() => {
+            isApplyingRemotePlayback = false;
+        }, 700);
+    }
+
+    return;
+}
 
                     if (
                         event.data === YT.PlayerState.PLAYING ||
@@ -582,6 +603,8 @@ socket.on("playback-update", (data) => {
     if (!player || !currentRoom) return;
     if (socket.id === currentRoom.hostId) return;
 
+    hostPlayback = data;
+
     isApplyingRemotePlayback = true;
 
     const currentTime = player.getCurrentTime();
@@ -592,11 +615,13 @@ socket.on("playback-update", (data) => {
 
     if (data.playing) {
         player.playVideo();
+        syncStatus.textContent = "Playing with host";
     } else {
         player.pauseVideo();
+        syncStatus.textContent = "⏸ Host paused — please wait";
     }
 
     window.setTimeout(() => {
         isApplyingRemotePlayback = false;
-    }, 500);
+    }, 700);
 });
