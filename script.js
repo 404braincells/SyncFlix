@@ -40,12 +40,15 @@ const socket = io();
 
 let currentRoom = null;
 let player = null;
+let isApplyingRemotePlayback = false;
+let lastPlaybackUpdate = 0;
 let displayName = sessionStorage.getItem("syncflix-name");
 
 const welcomeModal = $("#welcome-modal");
 const welcomeForm = $("#welcome-form");
 const displayNameInput = $("#display-name");
 const welcomeEmoji = $("#welcome-emoji");
+
 
 let selectedEmoji = sessionStorage.getItem("syncflix-emoji") || "🍿";
 let isCreatingRoom = false;
@@ -189,34 +192,66 @@ function getRoomIdFromInput(value) {
 // YouTube player
 // ----------------------------------------
 
+
 function renderVideo(videoId) {
-    // Remove any previous player.
-    if (player) {
+    if (player && typeof player.destroy === "function") {
         player.destroy();
         player = null;
     }
 
     videoContainer.replaceChildren();
 
-    const iframe = document.createElement("iframe");
+    const playerElement = document.createElement("div");
+    playerElement.id = "youtube-player";
+    videoContainer.appendChild(playerElement);
 
-    iframe.src =
-        `https://www.youtube.com/embed/${encodeURIComponent(videoId)}` +
-        "?enablejsapi=1&playsinline=1&rel=0";
+    function createPlayer() {
+        player = new YT.Player("youtube-player", {
+            width: "100%",
+            height: "100%",
+            videoId: videoId,
+            playerVars: {
+                playsinline: 1,
+                rel: 0
+            },
+            events: {
+                onReady: () => {
+                    videoTitle.textContent = "YouTube video";
+                    syncStatus.textContent = "Player ready";
+                },
+      
+                onStateChange: (event) => {
+                    if (isApplyingRemotePlayback || !currentRoom) return;
 
-    iframe.title = "YouTube video player";
-    iframe.allow =
-        "accelerometer; autoplay; clipboard-write; encrypted-media; " +
-        "gyroscope; picture-in-picture; web-share";
-    iframe.allowFullscreen = true;
-    iframe.referrerPolicy = "strict-origin-when-cross-origin";
-    iframe.setAttribute("referrerpolicy", "strict-origin-when-cross-origin");
+                    // Only the host publishes playback changes.
+                    if (socket.id !== currentRoom.hostId) return;
 
-    videoContainer.appendChild(iframe);
+                    if (
+                        event.data === YT.PlayerState.PLAYING ||
+                        event.data === YT.PlayerState.PAUSED
+                    ) {
+                        socket.emit("playback-update", {
+                            currentTime: player.getCurrentTime(),
+                            playing: event.data === YT.PlayerState.PLAYING
+                        });
+                    }
+                },
 
-    videoTitle.textContent = "YouTube video";
-    syncStatus.textContent = "Local playback";
-}   
+                onError: (event) => {
+                    console.error("YouTube player error:", event.data);
+                    syncStatus.textContent = "Unable to load video";
+                }
+
+        } 
+    });
+}
+
+    if (window.YT && window.YT.Player) {
+        createPlayer();
+    } else {
+        window.onYouTubeIframeAPIReady = createPlayer;
+    }
+}
 
 // ----------------------------------------
 // Room interface
@@ -542,4 +577,26 @@ socket.on("room-state", ({ roomId, name, videoId, hostId }) => {
     } else if (videoId && videoTitle.textContent !== "YouTube video") {
         renderVideo(videoId);
     }
+});
+socket.on("playback-update", (data) => {
+    if (!player || !currentRoom) return;
+    if (socket.id === currentRoom.hostId) return;
+
+    isApplyingRemotePlayback = true;
+
+    const currentTime = player.getCurrentTime();
+
+    if (Math.abs(currentTime - data.currentTime) > 1.5) {
+        player.seekTo(data.currentTime, true);
+    }
+
+    if (data.playing) {
+        player.playVideo();
+    } else {
+        player.pauseVideo();
+    }
+
+    window.setTimeout(() => {
+        isApplyingRemotePlayback = false;
+    }, 500);
 });

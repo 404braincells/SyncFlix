@@ -102,12 +102,16 @@ io.on("connection", (socket) => {
             }
 
             room = {
-                name: typeof roomName === "string" && roomName.trim()
-                    ? roomName.trim().slice(0, 60)
-                    : "Movie night",
-                videoId,
-                hostId: socket.id,
-                members: new Map()
+                    name: typeof roomName === "string" && roomName.trim()
+                ? roomName.trim().slice(0, 60)
+            : "Movie night",
+         videoId,
+            hostId: socket.id,
+            members: new Map(),
+            playback: {
+         currentTime: 0,
+            playing: false
+            }
             };
 
             rooms.set(roomId, room);
@@ -127,6 +131,7 @@ io.on("connection", (socket) => {
             videoId: room.videoId,
             hostId: room.hostId
         });
+        socket.emit("playback-update", room.playback);
 
         socket.emit("joined-room", { roomId, username: name });
 
@@ -134,6 +139,35 @@ io.on("connection", (socket) => {
         io.to(roomId).emit("system-message", `${name} joined the room.`);
 
         console.log(`${name} joined room ${roomId}`);
+    });
+        socket.on("playback-update", (data = {}) => {
+    const entry = [...rooms.entries()].find(
+        ([, room]) => room.members.has(socket.id)
+    );
+
+    if (!entry) return;
+
+    const [roomId, room] = entry;
+
+    // Only the host can control shared playback.
+    if (room.hostId !== socket.id) return;
+
+    if (
+        typeof data.currentTime !== "number" ||
+        !Number.isFinite(data.currentTime) ||
+        data.currentTime < 0 ||
+        typeof data.playing !== "boolean"
+    ) {
+        return;
+        }
+
+        room.playback = {
+        currentTime: data.currentTime,
+        playing: data.playing
+        };
+
+        // Send updates to everyone else in the room.
+        socket.to(roomId).emit("playback-update", room.playback);
     });
 
     socket.on("chat-message", (message) => {
